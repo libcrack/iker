@@ -41,13 +41,11 @@ Authors:
 
 import subprocess
 import argparse
-import sys,os
-from os import geteuid
-from re import sub
+import sys
+import os
+from re
 from time import localtime, strftime, sleep
 
-
-###############################################################################
 
 __version__ = "2.0"
 
@@ -294,18 +292,13 @@ def launch_proccess (command):
 
 	return process
 
+def usleep (secs):
+	"""
+    Sleeps secs/1000
+	@param secs Sleep time
+    """
+	time.sleep(secs/1000.0)
 
-###############################################################################
-def delay (time):
-	"""This method wait for a delay.
-	@param time The time to wait in milliseconds."""
-
-	if time:
-		sleep ( time / 1000.0 )
-
-
-
-###############################################################################
 def wait_for_exit (args, vpns, ip, key, value):
 	"""This method shows a progressbar during the discovery of transforms.
 	@param top The total number of transforms combinations
@@ -725,7 +718,7 @@ def enumerate_groupID_ciscoDPD (args, vpns, ip):
 				output = process.stdout.readlines()[1].strip()
 
 				# Check if the service is still responding
-				msg = sub (r'(HDR=\()[^\)]*(\))', r'\1xxxxxxxxxxx\2', output )
+				msg = re.sub (r'(HDR=\()[^\)]*(\))', r'\1xxxxxxxxxxx\2', output )
 				if not msg:
 					cnt += 1
 					if cnt > 3:
@@ -799,19 +792,19 @@ def enumerate_group_id (args, vpns):
 		# Try to guess the "unvalid client ID" message
 		process = launch_proccess ("%s --aggressive --trans=%s --id=badgroupiker123456 %s" % (FULLIKESCANPATH, vpns[ip]["aggressive"][0][0], ip))
 		process.wait()
-		message1 = sub (r'(HDR=\()[^\)]*(\))', r'\1xxxxxxxxxxx\2', process.stdout.readlines()[1].strip() )
+		message1 = re.sub (r'(HDR=\()[^\)]*(\))', r'\1xxxxxxxxxxx\2', process.stdout.readlines()[1].strip() )
 
 		delay (DELAY)
 
 		process = launch_proccess ("%s --aggressive --trans=%s --id=badgroupiker654321 %s" % (FULLIKESCANPATH, vpns[ip]["aggressive"][0][0], ip))
 		process.wait()
-		message2 = sub (r'(HDR=\()[^\)]*(\))', r'\1xxxxxxxxxxx\2', process.stdout.readlines()[1].strip() )
+		message2 = re.sub (r'(HDR=\()[^\)]*(\))', r'\1xxxxxxxxxxx\2', process.stdout.readlines()[1].strip() )
 
 		delay (DELAY)
 
 		process = launch_proccess ("%s --aggressive --trans=%s --id=badgroupiker935831 %s" % (FULLIKESCANPATH, vpns[ip]["aggressive"][0][0], ip))
 		process.wait()
-		message3 = sub (r'(HDR=\()[^\)]*(\))', r'\1xxxxxxxxxxx\2', process.stdout.readlines()[1].strip() )
+		message3 = re.sub (r'(HDR=\()[^\)]*(\))', r'\1xxxxxxxxxxx\2', process.stdout.readlines()[1].strip() )
 
 		delay (DELAY)
 
@@ -840,7 +833,7 @@ def enumerate_group_id (args, vpns):
 
 				process = launch_proccess ("%s --aggressive --trans=%s --id=%s %s" % (FULLIKESCANPATH, vpns[ip]["aggressive"][0][0], cid, ip))
 				process.wait()
-				msg = sub (r'(HDR=\()[^\)]*(\))', r'\1xxxxxxxxxxx\2', process.stdout.readlines()[1].strip() )
+				msg = re.sub (r'(HDR=\()[^\)]*(\))', r'\1xxxxxxxxxxx\2', process.stdout.readlines()[1].strip() )
 
 				if not msg:
 					cnt += 1
