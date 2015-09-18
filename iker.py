@@ -49,9 +49,14 @@ import re
 
 __version__ = "2.0"
 
-ikescan_path = os.path.realpath("ike-scan")
-if not os.path.exists(ikescan_path):
-    raise Exception("Cannot locate ike-scan in system $PATH")
+ikescan_path = None
+search_paths = ["/usr/bin/ike-scan", "/sbin/ike-scan", "/bin/ike-scan"]
+
+for exe in search_paths:
+    if os.path.exists(os.path.realpath(exe)):
+        ikescan_path = (os.path.realpath(exe))
+if ikescan_path is None:
+    raise Exception("Cannot locate ike-scan in {0}".format(search_paths))
 
 VERBOSE = False
 
@@ -150,7 +155,7 @@ def check_privileges():
     This method checks if the script was launched with root privileges.
         @returns True if it was launched with root privs and False in other case.
     """
-    return sys.geteuid() == 0
+    return os.geteuid() == 0
 
 
 def get_arguments():
@@ -407,7 +412,6 @@ def update_progress_bar(top, current, transform):
     progressbar = "[....................] %d%% - Current transform: %s\r"
     tt = 20
     step = top / tt
-    # Progress: [====================] 10% : DES-MD5
     cc = current / step
     progressbar = progressbar.replace(".", "=", cc)
     perctg = current * 100 / top
