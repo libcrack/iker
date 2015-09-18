@@ -1,4 +1,4 @@
 # Iker
 
-IPSec auditing tool by @julgoor
+Rewrite of the wrapper around ike-scan developer by @julgoor
 
