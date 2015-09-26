@@ -1,0 +1,3 @@
+[submodule "ike-scan"]
+	path = ike-scan
+	url = https://github.com/royhills/ike-scan.git
