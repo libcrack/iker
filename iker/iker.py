@@ -12,23 +12,14 @@ from . import color
 from .logger import Logger
 logger = Logger.logger
 
-# Logger.add_file_handler('./iker.log')
-# Logger.remove_console_handler()
-# logger.debug("debug level enabled")
-# Logger.set_verbose('debug')
-
-__version__ = "2.1"
-
 IKESCAN_PATH = None
-search_paths = ["/usr/bin/ike-scan", "/sbin/ike-scan", "/bin/ike-scan"]
+SEARCH_PATHS = ["/usr/bin/ike-scan", "/sbin/ike-scan", "/bin/ike-scan"]
 
-for exe in search_paths:
+for exe in SEARCH_PATHS:
     if os.path.exists(os.path.realpath(exe)):
         IKESCAN_PATH = (os.path.realpath(exe))
 if IKESCAN_PATH is None:
-    raise Exception("Cannot locate ike-scan in {0}".format(search_paths))
-
-VERBOSE = False
+    raise Exception("Cannot locate ike-scan in {0}".format(SEARCH_PATHS))
 
 # Encryption algorithms: DES, Triple-DES, AES/128, AES/192 and AES/256
 ENCLIST = []
@@ -423,18 +414,16 @@ def discovery(args, targets, vpns):
         ip = None
         info = ""
         for line in process.stdout.readlines():
-            if not line.split(
-            ) or "Starting ike-scan" in line or "Ending ike-scan" in line:
+            if not line.split() \
+                    or "Starting ike-scan" in line \
+                    or "Ending ike-scan" in line:
                 continue
             if line[0].isdigit():
                 if info:
                     vpns[ip] = {}
                     vpns[ip]["handshake"] = info.strip()
-                    if VERBOSE:
-                        logger.info(info)
-                    else:
-                        logger.info(
-                            "IKE service identified at: {0}".format(ip))
+                    logger.info("IKE service identified at: {0}".format(ip))
+                    logger.debug(info)
 
                 ip = line.split()[0]
                 info = line
@@ -443,8 +432,8 @@ def discovery(args, targets, vpns):
         if info and ip not in vpns.keys():
             vpns[ip] = {}
             vpns[ip]["handshake"] = info.strip()
+            logger.info("IKE service identified at: {0}".format(ip))
             logger.debug(info)
-            logger.info("IKE service identified at: %s" % ip)
 
 
 def check_ike_v2(args, targets, vpns):

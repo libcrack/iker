@@ -8,6 +8,7 @@ import os
 logger_name = 'iker'
 default_log_level = 'info'
 
+
 class Logger:
 
     logger = logging.getLogger(logger_name)
@@ -87,7 +88,6 @@ class Logger:
 
     add_file_handler = staticmethod(add_file_handler)
 
-
     def add_error_file_handler(file):
         """
         Error file handler
@@ -152,12 +152,12 @@ class Logger:
         logger.error("un mensaje de error")
         logger.critical("un mensaje critico")
 
-# log_dir = './'
-# logfile_path = '%s/%s.log' % (log_dir,logger_name)
-# errfile_path = '%s/%s.log' % (log_dir,logger_name)
-# Logger.add_file_handler(logfile_path)
+log_dir = './'
+logfile_path = '%s/%s.log' % (log_dir, logger_name)
+errfile_path = '%s/%s.log' % (log_dir, logger_name)
+Logger.add_file_handler(logfile_path)
 # Logger.add_error_file_handler(errfile_path)
 # Logger.remove_console_handler()
-# Logger.set_verbose(default_log_level)
+Logger.set_verbose(default_log_level)
 
 # vim:ts=4 sts=4 tw=79 expandtab:
