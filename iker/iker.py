@@ -12,14 +12,16 @@ from . import color
 from .logger import Logger
 logger = Logger.logger
 
-IKESCAN_PATH = None
-SEARCH_PATHS = ["/usr/bin/ike-scan", "/sbin/ike-scan", "/bin/ike-scan"]
+class IkeScan(object):
 
-for exe in SEARCH_PATHS:
-    if os.path.exists(os.path.realpath(exe)):
-        IKESCAN_PATH = (os.path.realpath(exe))
-if IKESCAN_PATH is None:
-    raise Exception("Cannot locate ike-scan in {0}".format(SEARCH_PATHS))
+    def __init__(self):
+        self.ikescan_path = None
+
+for pathdir in os.environ.get("PATH"):
+    if os.path.exists(os.path.realpath(pathdir + "/ike-scan")):
+        self.ikescan_path = (os.path.realpath(pathdir + "/ike-scan"))
+if self.ikescan_path is None:
+    raise Exception("Cannot find ike-scan in system PATH")
 
 # Encryption algorithms: DES, Triple-DES, AES/128, AES/192 and AES/256
 ENCLIST = []
@@ -110,20 +112,11 @@ def banner():
     print("ike-scan wrapper for testing IPsec-based VPNs.")
 
 
-def check_privileges():
-    """
-    This method checks if the script was launched with root privileges.
-        @returns True if it was launched with root privs and False in other case.
-    """
-    return os.geteuid() == 0
-
-
 def get_arguments():
     """
     Parses command line options
         @returns the arguments received and a list of targets.
     """
-    global IKESCAN_PATH
     global ENCLIST
     global HASHLIST
     global AUTHLIST
@@ -242,7 +235,7 @@ def get_arguments():
         sys.exit(1)
 
     if args.ikepath:
-        IKESCAN_PATH = args.ikepath
+        self.ikescan_path = args.ikepath
 
     if args.encalgs:
         ENCLIST = args.encalgs.split()
@@ -386,7 +379,7 @@ def check_ike_scan():
     """
     proccess = subprocess.Popen(
         "%s --version" %
-        IKESCAN_PATH,
+        self.ikescan_path,
         shell=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE)
@@ -409,7 +402,7 @@ def discovery(args, targets, vpns):
     logger.info("Discovering IKE services, please wait")
 
     for target in targets:
-        process = launch_proccess("%s -M %s" % (IKESCAN_PATH, target))
+        process = launch_proccess("%s -M %s" % (self.ikescan_path, target))
         process.wait()
         ip = None
         info = ""
@@ -448,7 +441,7 @@ def check_ike_v2(args, targets, vpns):
         # Check the IKE v2 support
         for target in targets:
 
-            process = launch_proccess("%s -2 -M %s" % (IKESCAN_PATH, target))
+            process = launch_proccess("%s -2 -M %s" % (self.ikescan_path, target))
             process.wait()
 
             ip = None
@@ -562,7 +555,7 @@ def fingerprint_show_backoff(args, vpns, transform="", vpnip=""):
 
             process = launch_proccess(
                 "%s --showbackoff %s %s" %
-                (IKESCAN_PATH,
+                (self.ikescan_path,
                  ((transform and (
                      "--trans=" +
                      transform) or transform)),
@@ -622,7 +615,7 @@ def check_encription_algorithms(args, vpns):
 
                             process = launch_proccess(
                                 "%s -M --trans=%s,%s,%s,%s %s" %
-                                (IKESCAN_PATH, enc, hsh, auth, group, ip))
+                                (self.ikescan_path, enc, hsh, auth, group, ip))
                             process.wait()
 
                             output = process.stdout.read()
@@ -697,7 +690,7 @@ def check_aggressives(args, vpns):
                         for group in GROUPLIST:
                             process = launch_proccess(
                                 "%s -M --aggressive -P%s_handshake.txt --trans=%s,%s,%s,%s %s" %
-                                (IKESCAN_PATH, ip, enc, hsh, auth, group, ip))
+                                (self.ikescan_path, ip, enc, hsh, auth, group, ip))
                             process.wait()
                             output = process.stdout.read()
                             info = ""
@@ -755,7 +748,7 @@ def enumerate_groupID_ciscoDPD(args, vpns, ip):
     """
     process = launch_proccess(
         "%s --aggressive --trans=%s --id=badgroupiker573629 %s" %
-        (IKESCAN_PATH, vpns[ip]["aggressive"][0][0], ip))
+        (self.ikescan_path, vpns[ip]["aggressive"][0][0], ip))
     process.wait()
     possible = True
     for line in process.stdout.readlines():
@@ -773,7 +766,7 @@ def enumerate_groupID_ciscoDPD(args, vpns, ip):
 
                 process = launch_proccess(
                     "%s --aggressive --trans=%s --id=%s %s" %
-                    (IKESCAN_PATH, vpns[ip]["aggressive"][0][0], cid, ip))
+                    (self.ikescan_path, vpns[ip]["aggressive"][0][0], cid, ip))
                 process.wait()
 
                 output = process.stdout.readlines()[1].strip()
@@ -799,7 +792,7 @@ def enumerate_groupID_ciscoDPD(args, vpns, ip):
                 if enc:
                     process = launch_proccess(
                         "%s --aggressive --trans=%s --id=%s %s" %
-                        (IKESCAN_PATH, vpns[ip]["aggressive"][0][0], cid, ip))
+                        (self.ikescan_path, vpns[ip]["aggressive"][0][0], cid, ip))
                     process.wait()
 
                     enc = False
@@ -850,7 +843,7 @@ def enumerate_group_id(args, vpns):
         # Try to guess the "unvalid client ID" message
         process = launch_proccess(
             "%s --aggressive --trans=%s --id=badgroupiker123456 %s" %
-            (IKESCAN_PATH, vpns[ip]["aggressive"][0][0], ip))
+            (self.ikescan_path, vpns[ip]["aggressive"][0][0], ip))
         process.wait()
         message1 = re.sub(
             r'(HDR=\()[^\)]*(\))',
@@ -860,7 +853,7 @@ def enumerate_group_id(args, vpns):
 
         process = launch_proccess(
             "%s --aggressive --trans=%s --id=badgroupiker654321 %s" %
-            (IKESCAN_PATH, vpns[ip]["aggressive"][0][0], ip))
+            (self.ikescan_path, vpns[ip]["aggressive"][0][0], ip))
         process.wait()
         message2 = re.sub(
             r'(HDR=\()[^\)]*(\))',
@@ -870,7 +863,7 @@ def enumerate_group_id(args, vpns):
 
         process = launch_proccess(
             "%s --aggressive --trans=%s --id=badgroupiker935831 %s" %
-            (IKESCAN_PATH, vpns[ip]["aggressive"][0][0], ip))
+            (self.ikescan_path, vpns[ip]["aggressive"][0][0], ip))
         process.wait()
         message3 = re.sub(
             r'(HDR=\()[^\)]*(\))',
@@ -902,7 +895,7 @@ def enumerate_group_id(args, vpns):
                 cid = cid.strip()
                 process = launch_proccess(
                     "%s --aggressive --trans=%s --id=%s %s" %
-                    (IKESCAN_PATH, vpns[ip]["aggressive"][0][0], cid, ip))
+                    (self.ikescan_path, vpns[ip]["aggressive"][0][0], cid, ip))
                 process.wait()
                 msg = re.sub(
                     r'(HDR=\()[^\)]*(\))',
@@ -1096,26 +1089,22 @@ def parse_results(args, vpns):
         pass
 
 
-def main():
+def main(argv=sys.argv[1:]):
 
-    if not check_privileges():
+    if os.geteuid():
         logger.fatal("\033[91m[*]\033[0m got r00t?")
-        sys.exit(1)
+        return 10
 
     banner()
     vpns = {}
     args, targets = get_arguments()
 
     if not check_ike_scan():
-        logger.fatal(
-            "\033[91m[*]\033[0m ike-scan could not be found. Please specified the full path with the --ikepath option.")
-        sys.exit(2)
+        logger.fatal("\033[91m[*]\033[0m ike-scan could not be found. Please specified the full path with the --ikepath option.")
+        return 20
 
-    logger.info(
-        "Starting at %s" %
-        time.strftime(
-            "%a, %d %b %Y %H:%M:%S",
-            time.localtime()))
+    logger.info("Starting at %s" % time.strftime(
+            "%a, %d %b %Y %H:%M:%S",time.localtime()))
 
     # 1. Discovery
     discovery(args, targets, vpns)
@@ -1142,3 +1131,8 @@ def main():
         time.strftime(
             "%a, %d %b %Y %H:%M:%S",
             time.localtime()))
+
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
