@@ -8,15 +8,24 @@ import sys
 import os
 import re
 
+from . import color
+from .logger import Logger
+logger = Logger.logger
+
+# Logger.add_file_handler('./iker.log')
+# Logger.remove_console_handler()
+# logger.debug("debug level enabled")
+# Logger.set_verbose('debug')
+
 __version__ = "2.1"
 
-ikescan_path = None
+IKESCAN_PATH = None
 search_paths = ["/usr/bin/ike-scan", "/sbin/ike-scan", "/bin/ike-scan"]
 
 for exe in search_paths:
     if os.path.exists(os.path.realpath(exe)):
-        ikescan_path = (os.path.realpath(exe))
-if ikescan_path is None:
+        IKESCAN_PATH = (os.path.realpath(exe))
+if IKESCAN_PATH is None:
     raise Exception("Cannot locate ike-scan in {0}".format(search_paths))
 
 VERBOSE = False
@@ -107,8 +116,7 @@ def banner():
     """
     Prints a banner message.
     """
-    print(
-        "iker v{0}\n\nThe ike-scan based script which checks for security flaws in IPsec-based VPNs.".format(__version__))
+    print("ike-scan wrapper for testing IPsec-based VPNs.")
 
 
 def check_privileges():
@@ -124,8 +132,7 @@ def get_arguments():
     Parses command line options
         @returns the arguments received and a list of targets.
     """
-    global VERBOSE
-    global ikescan_path
+    global IKESCAN_PATH
     global ENCLIST
     global HASHLIST
     global AUTHLIST
@@ -145,10 +152,12 @@ def get_arguments():
         help="The IP address or the network (CIDR notation) to scan.")
 
     parser.add_argument(
-        "-v",
-        "--verbose",
-        action="store_true",
-        help="Be verbose.")
+        "-l",
+        "--loglevel",
+        action="store",
+        type=str,
+        default='info',
+        help="logging verbose level")
     parser.add_argument(
         "-d",
         "--delay",
@@ -173,7 +182,8 @@ def get_arguments():
         "--encalgs",
         type=str,
         default="1 5 7/128 7/192 7/256",
-        help="The encryption algorithms to check. Default: DES, 3DES, AES/128, AES/192 and AES/256. Example: --encalgs=\"1 5 7/128 7/192 7/256\"")
+        help="The encryption algorithms to check. Default: DES, 3DES, AES/128, AES/192 and AES/256. "
+        "Example: --encalgs=\"1 5 7/128 7/192 7/256\"")
     parser.add_argument(
         "--hashalgs",
         type=str,
@@ -183,16 +193,22 @@ def get_arguments():
         "--authmethods",
         type=str,
         default="1 3 64221 65001",
-        help="The authorization methods to check. Default: Pre-Shared Key, RSA Signatures, Hybrid Mode and XAUTH. Example: --authmethods=\"1 3 64221 65001\"")
+        help="The authorization methods to check. Default: Pre-Shared Key, RSA Signatures, Hybrid Mode and XAUTH. "
+        "Example: --authmethods=\"1 3 64221 65001\"")
     parser.add_argument(
         "--dhgroups",
         type=str,
         default="1 2 5",
-        help="The Diffie-Hellman groups to check. Default: MODP 768, MODP 1024 and MODP 1536. Example: --dhgroups=\"1 2 5\"")
+        help="The Diffie-Hellman groups to check. Default: MODP 768, MODP 1024 and MODP 1536. "
+        "Example: --dhgroups=\"1 2 5\"")
     parser.add_argument(
         "--fullalgs",
         action="store_true",
-        help="Equivalent to: --encalgs=\"1 2 3 4 5 6 7/128 7/192 7/256 8\" --hashalgs=\"1 2 3 4 5 6\" --authmethods=\"1 2 3 4 5 6 7 8 64221 64222 64223 64224 65001 65002 65003 65004 65005 65006 65007 65008 65009 65010\" --dhgroups=\"1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18\"")
+        help="Equivalent to: "
+        "--encalgs=\"1 2 3 4 5 6 7/128 7/192 7/256 8\" "
+        "--hashalgs=\"1 2 3 4 5 6\" "
+        "--authmethods=\"1 2 3 4 5 6 7 8 64221 64222 64223 64224 65001 65002 65003 65004 65005 65006 65007 65008 65009 65010\" "
+        "--dhgroups=\"1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18\"")
     parser.add_argument(
         "--ikepath",
         type=str,
@@ -201,9 +217,11 @@ def get_arguments():
         "-c",
         "--clientids",
         type=str,
-        help="A file (dictionary) with a client ID per line to enumerate valid client IDs in Aggressive Mode. Default: unset - This test is not launched by default.")
+        help="A file (dictionary) with a client ID per line to enumerate valid client IDs in Aggressive Mode. "
+        "This test is not launched by default.")
 
     args = parser.parse_args()
+    Logger.set_verbose(args.loglevel)
 
     if args.target:
         targets.append(args.target)
@@ -214,25 +232,26 @@ def get_arguments():
             targets.extend(f.readlines())
             f.close()
         except:
-            print "\033[91m[*]\033[0m The input file specified ('%s') could not be opened." % args.input
+            logger.error(
+                "The input file specified ('%s') could not be opened." %
+                args.input)
 
     if args.output:
         try:
             f = open(args.output, "w")
             f.close()
         except:
-            print "\033[91m[*]\033[0m The output file specified ('%s') could not be opened/created." % args.output
+            logger.error(
+                "The output file specified ('%s') could not be opened/created." %
+                args.output)
 
     if not targets:
-        print "\033[91m[*]\033[0m You need to specify a target or an input file (-i)."
+        logger.error("You need to specify a target or an input file (-i)")
         parser.parse_args(["-h"])
         sys.exit(1)
 
-    if args.verbose:
-        VERBOSE = True
-
     if args.ikepath:
-        ikescan_path = args.ikepath
+        IKESCAN_PATH = args.ikepath
 
     if args.encalgs:
         ENCLIST = args.encalgs.split()
@@ -240,7 +259,8 @@ def get_arguments():
             parts = alg.split('/')
             for p in parts:
                 if not p.isdigit():
-                    print "\033[91m[*]\033[0m Wrong syntax for the encalgs parameter. Check syntax."
+                    logger.fatal(
+                        "Wrong syntax for the encalgs parameter. Check syntax.")
                     parser.parse_args(["-h"])
                     sys.exit(1)
 
@@ -248,7 +268,8 @@ def get_arguments():
         HASHLIST = args.hashalgs.split()
         for alg in HASHLIST:
             if not alg.isdigit():
-                print "\033[91m[*]\033[0m Wrong syntax for the hashalgs parameter. Check syntax."
+                logger.fatal(
+                    "Wrong syntax for the hashalgs parameter. Check syntax.")
                 parser.parse_args(["-h"])
                 sys.exit(1)
 
@@ -256,7 +277,8 @@ def get_arguments():
         AUTHLIST = args.authmethods.split()
         for alg in AUTHLIST:
             if not alg.isdigit():
-                print "\033[91m[*]\033[0m Wrong syntax for the authmethods parameter. Check syntax."
+                logger.fatal(
+                    "Wrong syntax for the authmethods parameter. Check syntax.")
                 parser.parse_args(["-h"])
                 sys.exit(1)
 
@@ -264,7 +286,8 @@ def get_arguments():
         GROUPLIST = args.dhgroups.split()
         for alg in GROUPLIST:
             if not alg.isdigit():
-                print "\033[91m[*]\033[0m Wrong syntax for the dhgroups parameter. Check syntax."
+                logger.fatal(
+                    "Wrong syntax for the dhgroups parameter. Check syntax.")
                 parser.parse_args(["-h"])
                 sys.exit(1)
 
@@ -274,7 +297,7 @@ def get_arguments():
         f = open(XMLOUTPUT, "w")
         f.close()
     except:
-        print "\033[91m[*]\033[0m The XML output file could not be opened/created."
+        logger.error("The XML output file could not be opened/created.")
 
     if args.clientids:
         try:
@@ -282,7 +305,8 @@ def get_arguments():
             f.close()
             CLIENTIDS = args.clientids
         except:
-            print "\033[91m[*]\033[0m The client ID dictionary could not be read. This test won't be launched."
+            logger.error(
+                "\033[91m[*]\033[0m The client ID dictionary could not be read. This test won't be launched.")
 
     if args.delay:
         DELAY = args.delay
@@ -296,22 +320,6 @@ def get_arguments():
     return args, targets
 
 
-def print_message(message, path=None):
-    """
-    Prints a message in the standard output and in a output file (if enabled).
-        @param message The message to be printed.
-        @param path The output file, if specified.
-    """
-    print message
-    if path:
-        try:
-            f = open(path, "a")
-            f.write("%s\n" % message)
-            f.close()
-        except:
-            pass
-
-
 def launch_proccess(command):
     """
     Launches a command in a different process and return the process.
@@ -323,10 +331,11 @@ def launch_proccess(command):
         stderr=subprocess.PIPE)
     error = process.stderr.readlines()
     if len(error) > 0 and "ERROR" in error[0] and "port 500" in error[0]:
-        print_message(
-            "\033[91m[*]\033[0m Something was wrong! There may be another instance of ike-scan running. Ensure that there is no other proccess using ike-scan before to launch iker.")
+        logger.fatal(
+            "\033[91m[*]\033[0m Port already binded. Is another instance of ike-scan running?.")
         sys.exit(1)
-    return process
+    else:
+        return process
 
 
 def usleep(secs):
@@ -345,20 +354,19 @@ def wait_for_exit(args, vpns, ip, key, value):
         @param transform The string which represent the transform.
     """
     try:
-        print_message(
-            "\033[91m[*]\033[0m You pressed Ctrl+C. Do it again to sys.exit or wait to continue but skipping this step.")
+        logger.alert(
+            "Ctrl+C pressed. Do it again to sys.exit or wait to continue but skipping this step")
         vpns[ip][key] = value
         sleep(2)
         if key not in vpns[ip].keys() or not vpns[ip][key]:
-            print_message("[*] Skipping test...", args.output)
+            logger.info("Skipping current test")
     except KeyboardInterrupt:
         parse_results(args, vpns)
-        print_message(
-            "iker finished at %s" %
+        logger.info(
+            "Finished at %s" %
             time.strftime(
-                "%a, %d %b %Y %H:%M:%S +0000",
-                time.localtime()),
-            args.output)
+                "%a, %d %b %Y %H:%M:%S",
+                time.localtime()))
         sys.exit(0)
 
 
@@ -387,7 +395,7 @@ def check_ike_scan():
     """
     proccess = subprocess.Popen(
         "%s --version" %
-        ikescan_path,
+        IKESCAN_PATH,
         shell=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE)
@@ -407,10 +415,10 @@ def discovery(args, targets, vpns):
         @param targets The targets specified (IPs and/or networks)
         @param vpns A dictionary to store all the information
     """
-    print_message("[*] Discovering IKE services, please wait...", args.output)
+    logger.info("Discovering IKE services, please wait")
 
     for target in targets:
-        process = launch_proccess("%s -M %s" % (ikescan_path, target))
+        process = launch_proccess("%s -M %s" % (IKESCAN_PATH, target))
         process.wait()
         ip = None
         info = ""
@@ -423,11 +431,10 @@ def discovery(args, targets, vpns):
                     vpns[ip] = {}
                     vpns[ip]["handshake"] = info.strip()
                     if VERBOSE:
-                        print_message(info, args.output)
+                        logger.info(info)
                     else:
-                        print_message(
-                            "\033[92m[*]\033[0m IKE service identified at: %s" %
-                            ip, args.output)
+                        logger.info(
+                            "IKE service identified at: {0}".format(ip))
 
                 ip = line.split()[0]
                 info = line
@@ -436,12 +443,8 @@ def discovery(args, targets, vpns):
         if info and ip not in vpns.keys():
             vpns[ip] = {}
             vpns[ip]["handshake"] = info.strip()
-            if VERBOSE:
-                print_message(info, args.output)
-            else:
-                print_message(
-                    "\033[92m[*]\033[0m IKE service identified at: %s" %
-                    ip, args.output)
+            logger.debug(info)
+            logger.info("IKE service identified at: %s" % ip)
 
 
 def check_ike_v2(args, targets, vpns):
@@ -449,14 +452,14 @@ def check_ike_v2(args, targets, vpns):
     @param args The command line parameters
     @param vpns A dictionary to store all the information"""
 
-    print_message("[*] Checking for IKE version 2 support...", args.output)
+    logger.info("Checking for IKE version 2 support")
     ips = []
 
     try:
         # Check the IKE v2 support
         for target in targets:
 
-            process = launch_proccess("%s -2 -M %s" % (ikescan_path, target))
+            process = launch_proccess("%s -2 -M %s" % (IKESCAN_PATH, target))
             process.wait()
 
             ip = None
@@ -471,32 +474,29 @@ def check_ike_v2(args, targets, vpns):
                 if line[0].isdigit():
 
                     if info:
-                        print_message(
+                        logger.info(
                             "\033[92m[*]\033[0m IKE version 2 is supported by %s" %
-                            ip, args.output)
+                            ip)
                         ips.append(ip)
                         if ip in vpns.keys():
                             vpns[ip]["v2"] = True
                         else:
-                            print_message(
-                                "[*] IKE version 1 support was not identified in this host (%s). iker will not perform more tests against this host." %
-                                ip,
-                                args.output)
-
+                            logger.info(
+                                "IKE version 1 support was not identified in this host (%s). iker will not perform more tests against this host." %
+                                ip)
                     ip = line.split()[0]
                     info = line
 
             if info and ip not in ips:
-                print_message(
+                logger.info(
                     "\033[92m[*]\033[0m IKE version 2 is supported by %s" %
-                    ip, args.output)
+                    ip)
                 if ip in vpns.keys():
                     vpns[ip]["v2"] = True
                 else:
-                    print_message(
-                        "[*] IKE version 1 support was not identified in this host (%s). iker will not perform more tests against this host." %
-                        ip,
-                        args.output)
+                    logger.info(
+                        "IKE version 1 support was not identified in this host (%s). iker will not perform more tests against this host." %
+                        ip)
 
         # Complete those which don't support it
         for ip in vpns.keys():
@@ -550,9 +550,9 @@ def fingerprint_VID(args, vpns, handshake=None):
 
         if vid and not enc:
             vpns[ip]["vid"].append((vid, hshk))
-            print_message(
+            logger.info(
                 "\033[92m[*]\033[0m Vendor ID identified for IP %s with transform %s: %s" %
-                (ip, transform, vid), args.output)
+                (ip, transform, vid))
 
 
 def fingerprint_show_backoff(args, vpns, transform="", vpnip=""):
@@ -561,10 +561,9 @@ def fingerprint_show_backoff(args, vpns, transform="", vpnip=""):
         @param args The command line parameters
         @param vpns A dictionary to store all the information
     """
-    print_message(
-        "\n[*] Trying to fingerprint the devices%s. This proccess is going to take a while (1-5 minutes per IP). Be patient..." %
-        (transform and " (again)" or transform),
-        args.output)
+    logger.info(
+        "Trying to fingerprint the device %s (1-5 minutes per IP)" %
+        (transform and " (again)" or transform))
 
     try:
         for ip in vpns.keys():
@@ -574,7 +573,7 @@ def fingerprint_show_backoff(args, vpns, transform="", vpnip=""):
 
             process = launch_proccess(
                 "%s --showbackoff %s %s" %
-                (ikescan_path,
+                (IKESCAN_PATH,
                  ((transform and (
                      "--trans=" +
                      transform) or transform)),
@@ -595,22 +594,20 @@ def fingerprint_show_backoff(args, vpns, transform="", vpnip=""):
 
                         vpns[ip]["showbackoff"] = vendor
 
-                        print_message(
+                        logger.info(
                             "\033[92m[*]\033[0m Implementation guessed for IP %s: %s" %
-                            (ip, vendor), args.output)
+                            (ip, vendor))
 
             if not vpns[ip]["showbackoff"]:
                 if transform:
-                    print_message(
+                    logger.info(
                         "\033[91m[*]\033[0m The device %s could not been fingerprinted. It won't be retry again." %
-                        ip,
-                        args.output)
+                        ip)
                     vpns[ip]["showbackoff"] = " "
                 else:
-                    print_message(
+                    logger.info(
                         "\033[91m[*]\033[0m The device %s could not been fingerprinted because no transform is known." %
-                        ip,
-                        args.output)
+                        ip)
     except KeyboardInterrupt:
         wait_for_exit(args, vpns, ip, "showbackoff", " ")
 
@@ -626,9 +623,7 @@ def check_encription_algorithms(args, vpns):
         current = 0
         for ip in vpns.keys():
 
-            print_message(
-                "\n[*] Looking for accepted transforms at %s" %
-                ip, args.output)
+            logger.info("Looking for accepted transforms at %s" % ip)
             vpns[ip]["transforms"] = []
 
             for enc in ENCLIST:
@@ -638,7 +633,7 @@ def check_encription_algorithms(args, vpns):
 
                             process = launch_proccess(
                                 "%s -M --trans=%s,%s,%s,%s %s" %
-                                (ikescan_path, enc, hsh, auth, group, ip))
+                                (IKESCAN_PATH, enc, hsh, auth, group, ip))
                             process.wait()
 
                             output = process.stdout.read()
@@ -654,9 +649,9 @@ def check_encription_algorithms(args, vpns):
                                 if "SA=" in line:
                                     new = True
                                     transform = line.strip()[4:-1]
-                                    print_message(
+                                    logger.info(
                                         "\033[92m[*]\033[0m Transform found: %s" %
-                                        transform, args.output)
+                                        transform)
 
                             if new:
                                 vpns[ip]["transforms"].append(
@@ -702,10 +697,9 @@ def check_aggressives(args, vpns):
         current = 0
         for ip in vpns.keys():
 
-            print_message(
-                "\n[*] Looking for accepted transforms in aggressive mode at %s" %
-                ip,
-                args.output)
+            logger.info(
+                "Looking for accepted transforms in aggressive mode at %s" %
+                ip)
             vpns[ip]["aggressive"] = []
 
             for enc in ENCLIST:
@@ -714,7 +708,7 @@ def check_aggressives(args, vpns):
                         for group in GROUPLIST:
                             process = launch_proccess(
                                 "%s -M --aggressive -P%s_handshake.txt --trans=%s,%s,%s,%s %s" %
-                                (ikescan_path, ip, enc, hsh, auth, group, ip))
+                                (IKESCAN_PATH, ip, enc, hsh, auth, group, ip))
                             process.wait()
                             output = process.stdout.read()
                             info = ""
@@ -726,9 +720,9 @@ def check_aggressives(args, vpns):
                                 if "SA=" in line:
                                     new = True
                                     transform = line.strip()[4:-1]
-                                    print_message(
+                                    logger.info(
                                         "\033[92m[*]\033[0m Aggressive mode supported with transform: %s" %
-                                        transform, args.output)
+                                        transform)
 
                             if new:
                                 vpns[ip]["aggressive"].append(
@@ -772,7 +766,7 @@ def enumerate_groupID_ciscoDPD(args, vpns, ip):
     """
     process = launch_proccess(
         "%s --aggressive --trans=%s --id=badgroupiker573629 %s" %
-        (ikescan_path, vpns[ip]["aggressive"][0][0], ip))
+        (IKESCAN_PATH, vpns[ip]["aggressive"][0][0], ip))
     process.wait()
     possible = True
     for line in process.stdout.readlines():
@@ -790,7 +784,7 @@ def enumerate_groupID_ciscoDPD(args, vpns, ip):
 
                 process = launch_proccess(
                     "%s --aggressive --trans=%s --id=%s %s" %
-                    (ikescan_path, vpns[ip]["aggressive"][0][0], cid, ip))
+                    (IKESCAN_PATH, vpns[ip]["aggressive"][0][0], cid, ip))
                 process.wait()
 
                 output = process.stdout.readlines()[1].strip()
@@ -800,9 +794,10 @@ def enumerate_groupID_ciscoDPD(args, vpns, ip):
                 if not msg:
                     cnt += 1
                     if cnt > 3:
-                        print_message(
-                            "\033[91m[*]\033[0m The IKE service cannot be reached; a firewall might filter your IP address. DPD Group ID enumeration could not be performed...",
-                            args.output)
+                        logger.error(
+                            "\033[91m[*]\033[0m The IKE service cannot be reached; a firewall might filter your IP address.")
+                        logger.error(
+                            "DPD Group ID enumeration could not be performed.")
                         return False
 
                 enc = False
@@ -815,16 +810,16 @@ def enumerate_groupID_ciscoDPD(args, vpns, ip):
                 if enc:
                     process = launch_proccess(
                         "%s --aggressive --trans=%s --id=%s %s" %
-                        (ikescan_path, vpns[ip]["aggressive"][0][0], cid, ip))
+                        (IKESCAN_PATH, vpns[ip]["aggressive"][0][0], cid, ip))
                     process.wait()
 
                     enc = False
                     for line in process.stdout.readlines():
                         if "dead peer" in line.lower():
                             vpns[ip]["clientids"].append(cid)
-                            print_message(
+                            logger.info(
                                 "\033[92m[*]\033[0m A potential valid client ID was found: %s" %
-                                cid, args.output)
+                                cid)
                             break
                     usleep(DELAY)
             fdict.close()
@@ -845,10 +840,7 @@ def enumerate_group_id(args, vpns):
         vpns[ip]["clientids"] = []
         if not len(vpns[ip]["aggressive"]):
             continue
-        print_message(
-            "\n[*] Trying to enumerate valid client IDs for IP %s" %
-            ip,
-            args.output)
+        logger.info("Trying to enumerate valid client IDs for IP %s" % ip)
 
         # Check if the device is vulnerable to Cisco DPD group ID enumeration
         # and exploit it
@@ -869,7 +861,7 @@ def enumerate_group_id(args, vpns):
         # Try to guess the "unvalid client ID" message
         process = launch_proccess(
             "%s --aggressive --trans=%s --id=badgroupiker123456 %s" %
-            (ikescan_path, vpns[ip]["aggressive"][0][0], ip))
+            (IKESCAN_PATH, vpns[ip]["aggressive"][0][0], ip))
         process.wait()
         message1 = re.sub(
             r'(HDR=\()[^\)]*(\))',
@@ -879,7 +871,7 @@ def enumerate_group_id(args, vpns):
 
         process = launch_proccess(
             "%s --aggressive --trans=%s --id=badgroupiker654321 %s" %
-            (ikescan_path, vpns[ip]["aggressive"][0][0], ip))
+            (IKESCAN_PATH, vpns[ip]["aggressive"][0][0], ip))
         process.wait()
         message2 = re.sub(
             r'(HDR=\()[^\)]*(\))',
@@ -889,7 +881,7 @@ def enumerate_group_id(args, vpns):
 
         process = launch_proccess(
             "%s --aggressive --trans=%s --id=badgroupiker935831 %s" %
-            (ikescan_path, vpns[ip]["aggressive"][0][0], ip))
+            (IKESCAN_PATH, vpns[ip]["aggressive"][0][0], ip))
         process.wait()
         message3 = re.sub(
             r'(HDR=\()[^\)]*(\))',
@@ -909,9 +901,8 @@ def enumerate_group_id(args, vpns):
             invalidmsg = message2
             vpns[ip]["clientids"].append("badgroupiker123456")
         else:
-            print_message(
-                "\033[91m[*]\033[0m It was not possible to get a common response to invalid client IDs. This test will be skipped.",
-                args.output)
+            logger.error(
+                "\033[91m[*]\033[0m It was not possible to get a common response to invalid client IDs. This test will be skipped.")
             return
 
         # Enumerate users
@@ -922,7 +913,7 @@ def enumerate_group_id(args, vpns):
                 cid = cid.strip()
                 process = launch_proccess(
                     "%s --aggressive --trans=%s --id=%s %s" %
-                    (ikescan_path, vpns[ip]["aggressive"][0][0], cid, ip))
+                    (IKESCAN_PATH, vpns[ip]["aggressive"][0][0], cid, ip))
                 process.wait()
                 msg = re.sub(
                     r'(HDR=\()[^\)]*(\))',
@@ -932,15 +923,15 @@ def enumerate_group_id(args, vpns):
                 if not msg:
                     cnt += 1
                     if cnt > 3:
-                        print_message(
-                            "\033[91m[*]\033[0m The IKE service cannot be reached; a firewall might filter your IP address. Skippig to the following service...",
-                            args.output)
+                        logger.error(
+                            "\033[91m[*]\033[0m The IKE service cannot be reached")
+                        logger.error("Skippig to the following service")
                         break
                 elif msg != invalidmsg:
                     vpns[ip]["clientids"].append(cid)
-                    print_message(
+                    logger.info(
                         "\033[92m[*]\033[0m A potential valid client ID was found: %s" %
-                        cid, args.output)
+                        cid)
                 usleep(DELAY)
             fdict.close()
         except:
@@ -953,7 +944,7 @@ def parse_results(args, vpns):
         @param args The command line parameters
         @param vpns A dictionary to store all the information
     """
-    print_message("\n\nResults:\n--------", args.output)
+    logger.info("Results:")
     pathxml = XMLOUTPUT
     try:
         fxml = open(pathxml, "a")
@@ -968,8 +959,8 @@ def parse_results(args, vpns):
             pass
 
         # Discoverable
-        print_message("\nResuls for IP %s:\n" % ip, args.output)
-        print_message("%s" % FLAWVPNDISCOVERABLEC, args.output)
+        logger.info("Resuls for IP %s:" % ip)
+        logger.info("%s" % FLAWVPNDISCOVERABLEC)
 
         try:
             fxml.write(
@@ -980,7 +971,7 @@ def parse_results(args, vpns):
 
         # IKE v2
         if "v2" in vpns[ip].keys() and vpns[ip]["v2"]:
-            print_message("%s" % FLAWIKEV2SUPPORTEDC, args.output)
+            logger.info("%s" % FLAWIKEV2SUPPORTEDC)
             try:
                 fxml.write(
                     "\t\t\t<flaw flawid=\"10\" description=\"%s\"></flaw>\n" %
@@ -990,11 +981,10 @@ def parse_results(args, vpns):
 
         # Fingerprinted by VID
         if "vid" in vpns[ip].keys() and len(vpns[ip]["vid"]) > 0:
-            print_message("%s" % FLAWVPNFINGVIDC, args.output)
+            logger.info("%s" % FLAWVPNFINGVIDC)
             for pair in vpns[ip]["vid"]:
-                print_message("\t%s" % pair[0], args.output)
-                if VERBOSE:
-                    print_message("%s\n" % pair[1], args.output)
+                logger.info("%s" % pair[0])
+                logger.debug("%s" % pair[1])
                 try:
                     fxml.write(
                         "\t\t\t<flaw flawid=\"2\" description=\"%s\" value=\"%s\"><![CDATA[%s]]></flaw>\n" %
@@ -1005,11 +995,9 @@ def parse_results(args, vpns):
         # Fingerprinted by back-off
         if "showbackoff" in vpns[
                 ip].keys() and vpns[ip]["showbackoff"].strip():
-            print_message(
+            logger.info(
                 "%s: %s" %
-                (FLAWVPNFINGBACKOFFC,
-                 vpns[ip]["showbackoff"]),
-                args.output)
+                (FLAWVPNFINGBACKOFFC, vpns[ip]["showbackoff"]))
             try:
                 fxml.write(
                     "\t\t\t<flaw flawid=\"3\" description=\"%s\" value=\"%s\"></flaw>\n" %
@@ -1024,9 +1012,8 @@ def parse_results(args, vpns):
                 if "Enc=DES" in trio[1]:
                     if first:
                         first = False
-                        print_message("%s" % FLAWWEAKENCALGC, args.output)
-                    if VERBOSE:
-                        print_message("%s" % trio[2], args.output)
+                        logger.info("%s" % FLAWWEAKENCALGC)
+                    logger.debug("%s" % trio[2])
                     try:
                         fxml.write(
                             "\t\t\t<flaw flawid=\"4\" description=\"%s\" value=\"%s\"><![CDATA[%s]]></flaw>\n" %
@@ -1038,9 +1025,8 @@ def parse_results(args, vpns):
                 if "Hash=MD5" in trio[1]:
                     if first:
                         first = False
-                        print_message("%s" % FLAWWEAKHASHALGC, args.output)
-                    if VERBOSE:
-                        print_message("%s" % trio[2], args.output)
+                        logger.info("%s" % FLAWWEAKHASHALGC)
+                    logger.debug("%s" % trio[2])
                     try:
                         fxml.write(
                             "\t\t\t<flaw flawid=\"5\" description=\"%s\" value=\"%s\"><![CDATA[%s]]></flaw>\n" %
@@ -1053,9 +1039,8 @@ def parse_results(args, vpns):
                 if "Group=1:modp768" in trio[1]:
                     if first:
                         first = False
-                        print_message("%s" % FLAWWEAKDHGALGC, args.output)
-                    if VERBOSE:
-                        print_message("%s" % trio[2], args.output)
+                        logger.info("%s" % FLAWWEAKDHGALGC)
+                    logger.debug("%s" % trio[2])
                     try:
                         fxml.write(
                             "\t\t\t<flaw flawid=\"6\" description=\"%s\" value=\"%s\"><![CDATA[%s]]></flaw>\n" %
@@ -1067,9 +1052,8 @@ def parse_results(args, vpns):
                 if "Group=2" in trio[1]:
                     if first:
                         first = False
-                        print_message("%s" % FLAWWEAKDH2GALGC, args.output)
-                    if VERBOSE:
-                        print_message("%s" % trio[2], args.output)
+                        logger.info("%s" % FLAWWEAKDH2GALGC)
+                    logger.debug("%s" % trio[2])
                     try:
                         fxml.write(
                             "\t\t\t<flaw flawid=\"6\" description=\"%s\" value=\"%s\"><![CDATA[%s]]></flaw>\n" %
@@ -1079,19 +1063,17 @@ def parse_results(args, vpns):
 
         # Aggressive Mode ?
         if "aggressive" in vpns[ip].keys() and len(vpns[ip]["aggressive"]) > 0:
-            print_message("%s" % FLAWAGGRESSIVEC, args.output)
+            logger.info("%s" % FLAWAGGRESSIVEC)
             for trio in vpns[ip]["aggressive"]:
-                if VERBOSE:
-                    print_message("%s" % (trio[2]), args.output)
-                else:
-                    print_message("\t%s" % (trio[1]), args.output)
+                logger.info("\t%s" % (trio[1]))
+                logger.debug("%s" % (trio[2]))
                 try:
                     fxml.write(
                         "\t\t\t<flaw flawid=\"7\" description=\"%s\" value=\"%s\"><![CDATA[%s]]></flaw>\n" %
                         (FLAWAGGRESSIVE, trio[1], trio[2]))
                 except:
                     pass
-            print_message("%s" % FLAWAGGRGROUPNOENCC, args.output)
+            logger.info("%s" % FLAWAGGRGROUPNOENCC)
             try:
                 fxml.write(
                     "\t\t\t<flaw flawid=\"8\" description=\"%s\"></flaw>\n" %
@@ -1101,12 +1083,11 @@ def parse_results(args, vpns):
 
         # Client IDs ?
         if "clientids" in vpns[ip].keys() and len(vpns[ip]["clientids"]) > 0:
-            print_message(
+            logger.info(
                 "%s: %s" %
                 (FLAWCIDENUMERATIONC,
                  ", ".join(
-                     vpns[ip]["clientids"])),
-                args.output)
+                     vpns[ip]["clientids"])))
             try:
                 fxml.write(
                     "\t\t\t<flaw flawid=\"9\" description=\"%s\" value=\"%s\"></flaw>\n" %
@@ -1126,33 +1107,33 @@ def parse_results(args, vpns):
         pass
 
 
-if __name__ == '__main__':
+def main():
 
     if not check_privileges():
-        print "\033[91m[*]\033[0m got r00t?"
-        sys.exit(0)
+        logger.fatal("\033[91m[*]\033[0m got r00t?")
+        sys.exit(1)
 
     banner()
     vpns = {}
     args, targets = get_arguments()
 
     if not check_ike_scan():
-        print "\033[91m[*]\033[0m ike-scan could not be found. Please specified the full path with the --ikepath option."
+        logger.fatal(
+            "\033[91m[*]\033[0m ike-scan could not be found. Please specified the full path with the --ikepath option.")
         sys.exit(2)
 
-    print_message(
-        "Starting iker (http://labs.portcullis.co.uk/tools/iker) at %s" %
+    logger.info(
+        "Starting at %s" %
         time.strftime(
-            "%a, %d %b %Y %H:%M:%S +0000",
-            time.localtime()),
-        args.output)
+            "%a, %d %b %Y %H:%M:%S",
+            time.localtime()))
 
     # 1. Discovery
     discovery(args, targets, vpns)
     check_ike_v2(args, targets, vpns)
 
     if not len(vpns.keys()):
-        print "\033[93m[*]\033[0m No IKE service was found. Bye ;)"
+        logger.critical("No IKE service was found")
         sys.exit(0)
 
     # 2. Fingerprint by checking VIDs and by analysing the service responses
@@ -1167,9 +1148,8 @@ if __name__ == '__main__':
     # . Parse the results
     parse_results(args, vpns)
 
-    print_message(
-        "iker finished at %s" %
+    logger.info(
+        "Finished at %s" %
         time.strftime(
-            "%a, %d %b %Y %H:%M:%S +0000",
-            time.localtime()),
-        args.output)
+            "%a, %d %b %Y %H:%M:%S",
+            time.localtime()))
