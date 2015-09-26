@@ -1,44 +1,6 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 
-"""
-Wrapper tool around ike-scan to help analyse the security of a IPsec based VPN endpoint.
-
-This script is under GPL v3 License (http://www.gnu.org/licenses/gpl-3.0.html)
-
-From a IP address/range or a list of them, iker.py uses ike-scan to look for common misconfiguration in VPN concentrators.
-
-Implemented features:
-
-* VPNs discovering
-* check for IKE v2 support
-* vendor IDs (VID) extraction
-* implementation guessing (backoff)
-* list supported transforms in Main Mode
-* check aggressive mode and list supported transforms in this mode
-* enumerate valid client/group IDs in aggressive mode
-* analyse results to extract actual issues
-* support 2 output formats
-
-Changelog:
-
-* Identify if there ike-scan launch any error during the scan
-* Improved the GUI by adding a progressbar added and the current transform
-* Skip feature
-* Capability to sys.exit at any time saving results
-
-Usage:
-
-# python iker.py -i ips.txt -o iker_output.txt -x iker_output.xml -v
-
-Authors:
-
-* Borja Ruiz (brc@portcullis-security.com)
-* Julio Gomez (jgo@portcullis-security.com)
-* Pablo Catalina (pcg@portcullis-security.com)
-
-"""
-
 import subprocess
 import argparse
 import time
@@ -46,8 +8,7 @@ import sys
 import os
 import re
 
-
-__version__ = "2.0"
+__version__ = "2.1"
 
 ikescan_path = None
 search_paths = ["/usr/bin/ike-scan", "/sbin/ike-scan", "/bin/ike-scan"]
