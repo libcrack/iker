@@ -215,7 +215,7 @@ def main(argv=sys.argv[1:]):
     vpns = {}
     args, targets = get_arguments()
 
-    wrapper = IkeScanWrapper(output=args.output)
+    wrapper = ike_scan_wrapper.IkeScanWrapper(output=args.output)
 
     logger.info("Starting at %s" % time.strftime(
             "%a, %d %b %Y %H:%M:%S",time.localtime()))
