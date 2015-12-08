@@ -94,24 +94,24 @@ class IkeScanWrapper(object):
                 raise Exception("Cannot find ike-scan in system PATH")
 
 
-def self.execve(command):
-    """
-    Executes a program in a new process.
-        @param command: absolute executable path
-    """
-    # proc = subprocess.Popen(['nohup', '/path/bin.exe'],
-    process = subprocess.Popen(
-        command,
-        shell=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE)
-    error = process.stderr.readlines()
-    if len(error) > 0 and "ERROR" in error[0] and "port 500" in error[0]:
-        msg = "Port already binded. Is another instance of ike-scan running?."
-        logger.fatal(msg)
-        raise Exception(msg)
-    else:
-        return process
+    def execve(self, command):
+        """
+        Executes a program in a new process.
+            @param command: absolute executable path
+        """
+        # proc = subprocess.Popen(['nohup', '/path/bin.exe'],
+        process = subprocess.Popen(
+            command,
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE)
+        error = process.stderr.readlines()
+        if len(error) > 0 and "ERROR" in error[0] and "port 500" in error[0]:
+            msg = "Port already binded. Is another instance of ike-scan running?."
+            logger.fatal(msg)
+            raise Exception(msg)
+        else:
+            return process
 
 
 def wait_for_exit(args, vpns, ip, key, value):
