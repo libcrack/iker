@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 venv="env"
-v=3.5
+v=2.7
 [[ "$BASH_SOURCE" == "$0" ]] && {
     myself="$(readlink -m ${0#-*})"
     echo "Usage: . $myself" > /dev/stderr
