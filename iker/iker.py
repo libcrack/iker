@@ -208,7 +208,7 @@ def get_arguments():
 def main(argv=sys.argv[1:]):
 
     if os.geteuid():
-        logger.fatal("\033[91m[*]\033[0m got r00t?")
+        logger.fatal("got r00t?")
         return 10
 
     banner()
