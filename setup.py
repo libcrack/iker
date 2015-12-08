@@ -7,9 +7,9 @@ import re
 import os
 
 try:
-    from setuptools import find_packages,setup
+    from setuptools import setup
 except ImportError:
-    from distutils.core import find_packages,setup
+    from distutils.core import setup
 
 def read(relpath):
     """
@@ -26,9 +26,10 @@ PACKAGES = [PACKAGE]
 PROVIDES = [PACKAGE]
 PACKAGE_DIR = {PACKAGE: PACKAGE}
 SCRIPT_FILE = PACKAGE_DIR[PACKAGE] + '/__init__.py'
-SCRIPTS=['scripts/' + PACKAGE]
+# SCRIPTS=['scripts/' + PACKAGE]
 ENTRY_POINTS = {
-    'console_scripts': [PACKAGE + '=' + PACKAGE + '.cli:main'],
+    # 'console_scripts': [PACKAGE + '=' + PACKAGE + '.' + PACKAGE + ':main'],
+    'console_scripts': ['{0}={0}.{0}:main'.format(PACKAGE)],
 }
 
 PLATFORMS = ['Linux']
