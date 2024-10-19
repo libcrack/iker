@@ -11,7 +11,7 @@ from . import color
 from .logger import Logger
 logger = Logger.logger
 
-class Issue(object):
+class Issue():
     def __init__(self, title=None, severity=None):
         if title is None or severity is None:
             raise ValueError("Mandatory parameters: title, severity")
@@ -33,7 +33,7 @@ known_issues.append(Issue(title="The Aggressive Mode transmits group name withou
 known_issues.append(Issue(title="Client IDs could be enumerated",severity="medium"))
 
 
-class IkeScanWrapper(object):
+class IkeScanWrapper():
     """
         FLAWVPNDISCOVERABLE = "The IKE service could be discovered (Risk: LOW)"
         FLAWIKEV2SUPPORTED = "IKE v2 is supported (Risk: Informational)"
@@ -125,7 +125,7 @@ def wait_for_exit(args, vpns, ip, key, value):
         logger.alert(
             "Ctrl+C pressed. Do it again to sys.exit or wait to continue but skipping this step")
         vpns[ip][key] = value
-        sleep(2)
+        time.sleep(2)
         if key not in vpns[ip].keys() or not vpns[ip][key]:
             logger.info("Skipping current test")
     except KeyboardInterrupt:
